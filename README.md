@@ -2,15 +2,15 @@
 
 ## Word Embedding
 
-**不用word embedding，one-hot编码输入向量长度等于词库长度，效果可能不好？**
+**~~不用word embedding，one-hot编码输入向量长度等于词库长度，效果可能不好？~~**
 
-现成的embedding（未验证）：https://sites.google.com/site/rmyeid/projects/polyglot
+~~现成的embedding（未验证）：~~ https://sites.google.com/site/rmyeid/projects/polyglot
 
-- Word2Vec
+- Word2Vec ✔️ (4)
 - GloVe
 - FastText
 - Elmo
-- Bert
+- Bert ✔️
 
 ## Corpus
 
@@ -20,3 +20,17 @@
 ## 问题
 
 **如何在少量数据上进行模型训练？**
+
+## Pretrain Models
+
+**Indonesian Model**
+
+indobert: https://huggingface.co/indolem/indobert-base-uncased
+
+**Multilingual Models**
+
+mbert: https://huggingface.co/google-bert/bert-base-multilingual-cased
+
+XLM-RoBERTa: https://huggingface.co/FacebookAI/xlm-roberta-base
+
+**for Javanese, directly use \ fine-tune -- mbert \ XLM-RoBERTa?**
