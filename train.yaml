@@ -1,0 +1,22 @@
+data:
+  file_path:
+  file_type:
+
+model:
+  task: mt
+  model: lstm
+  input_size: 10
+  hidden_size: 32
+  output_size: 24
+  num_layer: 4
+
+  # - bilstm:
+  #   input_size: 10
+  #   hidden_size: 32
+  #   output_size: 32
+  #   num_layer: 4
+
+train:
+  epochs: 50
+  batch_size: 64
+  learning_rate: 0.001
