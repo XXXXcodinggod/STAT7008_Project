@@ -22,6 +22,7 @@ nvidia-cuda-nvrtc-cu11==11.7.99
 nvidia-cuda-runtime-cu11==11.7.99
 nvidia-cudnn-cu11==8.5.0.96
 pillow==11.0.0
+pandas==2.2.3
 pyparsing==3.2.0
 PyYAML==6.0.2
 regex==2024.11.6
