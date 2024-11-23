@@ -33,8 +33,13 @@ class Preprocess:
             corpus = Counter(word_list)
             # corpus = sorted(corpus, key=corpus.get, reverse=True)[:1000]
             corpus = sorted(corpus, key=corpus.get, reverse=True)
-            vocabulary = {w: i+1 for i, w in enumerate(corpus)}
-            vocabulary['[UNK]'] = 0
+            vocabulary = {'[PAD]': 0, '[UNK]':1}
+            if language in ['javanese', 'english']:
+                vocabulary['[START]'] = 2
+                vocabulary['[END]'] = 3
+            n = len(vocabulary)
+            for i, word in enumerate(corpus):
+                vocabulary[word] = n + i
             self.vocab[language] = vocabulary
         
     def _tokenize(self):
@@ -130,11 +135,11 @@ class Preprocess:
         self.df_valid = pd.read_csv(os.path.join(self.dir_path, 'valid.csv'))
         
         self._tokenize()
+        self._vocabulary()
         self._unify_seq_len()
         if self.task == 'sentiment_analysis':
             self._sentiment_encode()
         if self.emb_type == 'one_hot':
-            self._vocabulary()
             self._one_hot()
         elif self.emb_type == 'word2vec':
             pass
@@ -152,8 +157,13 @@ if __name__ ==  '__main__':
     print(preprocess.vocab.keys())
     print('vocabulary size:', len(preprocess.vocab['indonesian']))
     print(preprocess.seq_len)
-    for item in preprocess.vocab['indonesian'].items():
-        print(item)
-        break
+    cnt = 5
+    vocab_indo = preprocess.vocab['indonesian']
+    vocab_java = preprocess.vocab['javanese']
+    for item1, item2 in zip(vocab_indo.items(), vocab_java.items()):
+        if cnt == 0:
+            break
+        print(f"indonesian: {item1}, \njavanese: {item2}")
+        cnt -= 1
     print('sequence length:', len(eval(preprocess.df_train.loc[0, 'indonesian_embedding'])))
     print('one_hot_embed_dim:', len(eval(preprocess.df_train.loc[0, 'indonesian_embedding'])[0]))
