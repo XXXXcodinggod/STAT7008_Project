@@ -9,19 +9,29 @@ conda create -n nlp_env python=3.10.9
 conda activate nlp_env
 ```
 
-Packages:
+Install Packages:
 
 ```bash
 pip install -r requirements.txt
 ```
 
+## Load the Datasets
+
+```bash
+git clone https://github.com/IndoNLP/nusax.git
+```
+
+## Download the Tokenizer
+
+```bash
+cd src/utils
+python preprocess.py
+```
+
 ## Word Embedding
 
-**~~不用word embedding，one-hot编码输入向量长度等于词库长度，效果可能不好？~~**
-
-~~现成的embedding（未验证）：~~ https://sites.google.com/site/rmyeid/projects/polyglot
-
--  Word2Vec ✔️ (4)
+- nn.embedding ✔️ (linear map)
+- Word2Vec ✔️ (4)
 - GloVe
 - FastText
 - Elmo
@@ -33,7 +43,7 @@ pip install -r requirements.txt
 - Javanese: https://dumps.wikimedia.org/jvwiki/
 
 ## Machine Translation
-- lstm ✔️
+- seq2seq based on lstm ✔️
 - transformer ✔️
 - TinyBert **?**
 

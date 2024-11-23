@@ -76,15 +76,4 @@ class LSTMCell(nn.Module):
         
         return hidden_seq, h_t, c_t
 
-if __name__ == '__main__':
-    batch_size = 4
-    x = torch.randn(batch_size, 20, 10)
-    lstm=LSTMCell(10, 32)
-    h_0=torch.randn(batch_size, 32)
-    c_0=torch.randn(batch_size, 32)
-    hidden_seq, h, c = lstm(x, h_0, c_0)
-
-    print('hidden_seq.shape:', hidden_seq.shape) # (batch_size, seq_len, hidden_size)
-    print('h.shape:', h.shape) # (batch_size, hidden_size)
-    print('c.shape:', c.shape) # (batch_size, hidden_size)
     

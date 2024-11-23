@@ -1,21 +1,11 @@
-import argparse
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-import matplotlib.pyplot as plt
-from src.lstm.multi_lstm import LSTM
-from src.lstm.bi_lstm import BiLSTM
-
-import argparse
 import yaml
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
+from src import Preprocess, TranslationDataset, SentimentDataset
+from src import Seq2Seq
 
-# 训练函数
 def train_model(model, dataloader, criterion, optimizer, epochs):
     model.train()
     train_losses = []
@@ -27,11 +17,11 @@ def train_model(model, dataloader, criterion, optimizer, epochs):
         total = 0
 
         for inputs, labels in dataloader:
-            optimizer.zero_grad()  # 清零梯度
-            outputs = model(inputs)  # 前向传播
-            loss = criterion(outputs, labels)  # 计算损失
-            loss.backward()  # 反向传播
-            optimizer.step()  # 更新参数
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
             
             epoch_loss += loss.item()
             _, predicted = torch.max(outputs.data, 1)
@@ -47,7 +37,28 @@ def train_model(model, dataloader, criterion, optimizer, epochs):
 
     return train_losses, train_accs
 
-# 准备保存训练过程的图像
+def train(model, dataloader, criterion, optimizer, device, num_epochs):
+    model.train()
+    for epoch in range(num_epochs):
+        total_loss = 0  # 初始化总损失
+        for batch_idx, (src, tgt) in enumerate(dataloader):
+            src, tgt = src.to(device), tgt.to(device)  # 将数据移动到设备上
+            optimizer.zero_grad()  # 清空梯度
+
+            # 仅使用 tgt 的前 n-1 个词作为输入
+            output = model(src, tgt[:, :-1])  # tgt 输入部分
+            # 计算损失，忽略填充标签
+            loss = criterion(output.view(-1, output.size(-1)), tgt[:, 1:].contiguous().view(-1))
+            loss.backward()  # 反向传播
+            optimizer.step()  # 更新参数
+            
+            total_loss += loss.item()  # 累加损失
+            if batch_idx % 100 == 0:  # 每100个批次输出一次损失
+                print(f'Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}], Loss: {loss.item():.4f}')
+
+        avg_loss = total_loss / len(dataloader)  # 计算平均损失
+        print(f'Epoch [{epoch+1}/{num_epochs}], Average Loss: {avg_loss:.4f}')
+
 def save_plots(losses, accs, epochs):
     plt.figure(figsize=(12, 5))
 
@@ -71,33 +82,30 @@ def save_plots(losses, accs, epochs):
     plt.savefig('training_results.png')
     plt.close()
 
-# 读取 YAML 配置文件
 def load_config(config_file):
     with open(config_file, 'r') as f:
         config = yaml.safe_load(f)
     return config
 
-# 主程序
 if __name__ == '__main__':
-    # 加载配置
-    config = load_config('train.yaml')
-    model_config = config['model']
-    print(model_config)
+    pass
+    # config = load_config('train.yaml')
+    # model_config = config['model']
+    # print(model_config)
     
-    # 创建模型
-    if model_config['task'] == 'mt':
-        if model_config['model'] == 'lstm':
-            model = LSTM(model_config['input_size'], 
-                         model_config['hidden_size'], 
-                         model_config['output_size'])
-    batch_size = 64
-    n_layers = 4
-    output_size = 24
-    x = torch.randn(batch_size, 20, 10)
-    h_0 = torch.randn(n_layers, batch_size, 32)
-    c_0 = torch.randn(n_layers, batch_size, 32)
-    output_seq = model(x)
-    print('output.shape:', output_seq.shape) # (batch_size, seq_len, output_size)
+    # if model_config['task'] == 'mt':
+    #     if model_config['model'] == 'lstm':
+    #         model = LSTM(model_config['input_size'], 
+    #                      model_config['hidden_size'], 
+    #                      model_config['output_size'])
+    # batch_size = 64
+    # n_layers = 4
+    # output_size = 24
+    # x = torch.randn(batch_size, 20, 10)
+    # h_0 = torch.randn(n_layers, batch_size, 32)
+    # c_0 = torch.randn(n_layers, batch_size, 32)
+    # output_seq = model(x)
+    # print('output.shape:', output_seq.shape) # (batch_size, seq_len, output_size)
     
     # # 创建假数据
     # x_train = torch.randn(1000, config['model']['input_size'])

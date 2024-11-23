@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from src.lstm.lstmcell import LSTMCell
+from .lstmcell import LSTMCell
 
 class BidirectionalLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers=1):
@@ -14,7 +14,11 @@ class BidirectionalLSTM(nn.Module):
             self.LSTMCell_forward.append(LSTMCell(2 * self.hidden_size, self.hidden_size))
             self.LSTMCell_Backward.append(LSTMCell(2 * self.hidden_size, self.hidden_size))
         
-    def forward(self, input_seq, h_0, c_0):
+    def forward(self, input_seq, h_0=None, c_0=None):
+        if h_0 is None:
+            h_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach()
+        if c_0 is None:
+            c_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach()
         input_seq_reversed = input_seq.flip(dims=[1]) # (batch_size, seq_len, hidden_size)
         
         hidden_seq_forward, h_forward, c_forward = self.LSTMCell_forward[0](input_seq, h_0[0], c_0[0]) # (batch_size, seq_len, hidden_size)
@@ -38,9 +42,11 @@ class BiLSTM(nn.Module):
         self.lstm = BidirectionalLSTM(self.input_size, self.hidden_size, self.num_layers)
         self.fc = nn.Linear(2 * self.hidden_size, self.output_size)
     
-    def forward(self, input_seq):
-        h_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach()
-        c_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach()
+    def forward(self, input_seq, h_0=None, c_0=None):
+        if h_0 is None:
+            h_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach() # (num_layer, batch_size, hidden_size)
+        if c_0 is None:
+            c_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach() # (num_layer, batch_size, hidden_size)
         output, _, _, _, _ = self.lstm(input_seq, h_0, c_0) # (batch_size, seq_len, 2 * hidden_size)
         batch_size, seq_len, _ = output.shape
         output = output.view(batch_size * seq_len, 2 * self.hidden_size) # (batch_size * seq_len, 2 * hidden_size)

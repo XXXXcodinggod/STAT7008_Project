@@ -1,16 +1,12 @@
 import pandas as pd
 import os
 import nltk
+from typing import Optional
 from collections import Counter
 from nltk.tokenize import word_tokenize
 
-current_directory = os.getcwd()
-nltk.data.path.append(current_directory)
-nltk.download('punkt', download_dir=current_directory)
-nltk.download('punkt_tab', download_dir=current_directory)
-
 class Preprocess:
-    def __init__(self, dir_path: str, task: str, emb_type: str):
+    def __init__(self, dir_path: str, task: str, emb_type: Optional[str] = None):
         self.dir_path = dir_path
         self.task = task
         self.emb_type = emb_type
@@ -43,6 +39,9 @@ class Preprocess:
             self.vocab[language] = vocabulary
         
     def _tokenize(self):
+        nltk.data.path.append('./utils') # from src directory
+        nltk.data.path.append('./src/utils') # from root directory
+        
         df_train = self.df_train
         df_test = self.df_test
         df_valid = self.df_valid
@@ -82,49 +81,73 @@ class Preprocess:
         df_test = self.df_test
         df_valid = self.df_valid
         
-        def _padding_truncating(seq_len, tokens):
+        def _padding_truncating(seq_len, tokens, is_target_lang):
             tokens = eval(tokens)
+            if is_target_lang:
+                tokens = ['[START]'] + tokens + ['[END]']
             token_len = len(tokens)
             if token_len == seq_len:
                 return str(tokens)
             elif token_len < seq_len:
                 return str(tokens + ['[PAD]'] * (seq_len - len(tokens)))
             else:
-                return str(tokens[:seq_len])
+                if not is_target_lang:
+                    return str(tokens[:seq_len])
+                else:
+                    return str(tokens[:seq_len - 1] + ['[END]'])
         
         for language in self.languages:
             seq_len = self.seq_len[language]
-            df_train[f"{language}_tokens"] = df_train[f"{language}_tokens"].apply(lambda x: _padding_truncating(seq_len, x))
-            df_test[f"{language}_tokens"] = df_test[f"{language}_tokens"].apply(lambda x: _padding_truncating(seq_len, x))
-            df_valid[f"{language}_tokens"] = df_valid[f"{language}_tokens"].apply(lambda x: _padding_truncating(seq_len, x))
+            is_target_lang = 0 if language == 'indonesian' else 1
+            df_train[f"{language}_tokens"] = df_train[f"{language}_tokens"].apply(lambda x: _padding_truncating(seq_len, x, is_target_lang))
+            df_test[f"{language}_tokens"] = df_test[f"{language}_tokens"].apply(lambda x: _padding_truncating(seq_len, x, is_target_lang))
+            df_valid[f"{language}_tokens"] = df_valid[f"{language}_tokens"].apply(lambda x: _padding_truncating(seq_len, x, is_target_lang))
         
         self.df_train = df_train
         self.df_test = df_test
         self.df_valid = df_valid
-        
-    def _one_hot(self):
+    
+    def _word_to_index(self):
         df_train = self.df_train
         df_test = self.df_test
         df_valid = self.df_valid
         
-        def _one_hot_embedding(vocab, seq_len, tokens):
-            one_hot_embedding = [[0] * (len(vocab))] * seq_len
-            word_to_index = [vocab[token] if token in vocab else 1 for token in eval(tokens)]
-            for i in range(seq_len):
-                one_hot_embedding[i][word_to_index[i]] = 1
-            return str(one_hot_embedding)
+        def _mapping(vocab, tokens):
+            return str([vocab[token] if token in vocab else 1 for token in eval(tokens)])
         
         for language in self.languages:
             vocab = self.vocab[language]
-            seq_len = self.seq_len[language]
-            
-            df_train[f"{language}_embedding"] = df_train[f"{language}_tokens"].apply(lambda x: _one_hot_embedding(vocab, seq_len, x))
-            df_test[f"{language}_embedding"] = df_test[f"{language}_tokens"].apply(lambda x: _one_hot_embedding(vocab, seq_len, x))
-            df_valid[f"{language}_embedding"] = df_valid[f"{language}_tokens"].apply(lambda x: _one_hot_embedding(vocab, seq_len, x))
+            df_train[f"{language}_word2index"] = df_train[f"{language}_tokens"].apply(lambda x: _mapping(vocab, x))
+            df_test[f"{language}_word2index"] = df_test[f"{language}_tokens"].apply(lambda x: _mapping(vocab, x))
+            df_valid[f"{language}_word2index"] = df_valid[f"{language}_tokens"].apply(lambda x: _mapping(vocab, x))
 
         self.df_train = df_train
         self.df_test = df_test
         self.df_valid = df_valid
+
+    # def _one_hot(self):
+    #     df_train = self.df_train
+    #     df_test = self.df_test
+    #     df_valid = self.df_valid
+        
+    #     def _one_hot_embedding(vocab, word2index):
+    #         word2index = eval(word2index)
+    #         one_hot_embedding = [[0] * (len(vocab))] * len(word2index)
+    #         for i in range(seq_len):
+    #             one_hot_embedding[i][word2index[i]] = 1
+    #         return str(one_hot_embedding)
+        
+    #     for language in self.languages:
+    #         vocab = self.vocab[language]
+    #         seq_len = self.seq_len[language]
+            
+    #         df_train[f"{language}_embedding"] = df_train[f"{language}_word2index"].apply(lambda x: _one_hot_embedding(vocab, x))
+    #         df_test[f"{language}_embedding"] = df_test[f"{language}_word2index"].apply(lambda x: _one_hot_embedding(vocab, x))
+    #         df_valid[f"{language}_embedding"] = df_valid[f"{language}_word2index"].apply(lambda x: _one_hot_embedding(vocab, x))
+
+    #     self.df_train = df_train
+    #     self.df_test = df_test
+    #     self.df_valid = df_valid
 
     def _embedding(self):
         pass
@@ -137,33 +160,19 @@ class Preprocess:
         self._tokenize()
         self._vocabulary()
         self._unify_seq_len()
+        self._word_to_index()
         if self.task == 'sentiment_analysis':
             self._sentiment_encode()
-        if self.emb_type == 'one_hot':
-            self._one_hot()
-        elif self.emb_type == 'word2vec':
-            pass
-        elif self.emb_type == 'bert':
-            pass            
         
-if __name__ ==  '__main__':
-    # dir_path = './nusax/datasets/sentiment/indonesian'
-    # task = 'sentiment_analysis'
-    dir_path = './nusax/datasets/mt'
-    task = 'machine_translation'
-    emb_type = 'one_hot'
-    preprocess = Preprocess(dir_path, task, emb_type)
-    preprocess.load_and_preprocess_data()
-    print(preprocess.vocab.keys())
-    print('vocabulary size:', len(preprocess.vocab['indonesian']))
-    print(preprocess.seq_len)
-    cnt = 5
-    vocab_indo = preprocess.vocab['indonesian']
-    vocab_java = preprocess.vocab['javanese']
-    for item1, item2 in zip(vocab_indo.items(), vocab_java.items()):
-        if cnt == 0:
-            break
-        print(f"indonesian: {item1}, \njavanese: {item2}")
-        cnt -= 1
-    print('sequence length:', len(eval(preprocess.df_train.loc[0, 'indonesian_embedding'])))
-    print('one_hot_embed_dim:', len(eval(preprocess.df_train.loc[0, 'indonesian_embedding'])[0]))
+        # if self.emb_type == 'one_hot':
+        #     self._one_hot()
+        # elif self.emb_type == 'word2vec':
+        #     pass
+        # elif self.emb_type == 'bert':
+        #     pass            
+
+if __name__ == '__main__':
+    current_directory = os.getcwd()
+    nltk.download('punkt', download_dir=current_directory)
+    nltk.download('punkt_tab', download_dir=current_directory)
+    
