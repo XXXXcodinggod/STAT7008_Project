@@ -4,10 +4,10 @@ from .multi_lstm import LSTM
 from .bi_lstm import BidirectionalLSTM
 
 class Seq2Seq(nn.Module):
-    def __init__(self, src_seq_len, tgt_seq_len, src_emb_dim, tgt_emb_dim, encoder_hidden_dim, decoder_hidden_dim, tgt_vocab_dim, num_encoder_layers, num_decoder_layers):
+    def __init__(self, src_vocab_dim, tgt_vocab_dim, src_emb_dim, tgt_emb_dim, encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, num_decoder_layers):
         super().__init__()
-        self.src_embedding = nn.Embedding(src_seq_len, src_emb_dim)
-        self.tgt_embedding = nn.Embedding(tgt_seq_len, tgt_emb_dim)
+        self.src_embedding = nn.Embedding(src_vocab_dim, src_emb_dim)
+        self.tgt_embedding = nn.Embedding(tgt_vocab_dim, tgt_emb_dim)
         self.encoder = BidirectionalLSTM(src_emb_dim, encoder_hidden_dim, num_encoder_layers)
         self.mid_layer_h = nn.Linear(2 * encoder_hidden_dim, decoder_hidden_dim)
         self.mid_layer_c = nn.Linear(2 * encoder_hidden_dim, decoder_hidden_dim)

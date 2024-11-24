@@ -1,0 +1,22 @@
+data_path: ./nusax/datasets/mt
+
+task: machine_translation
+src_lang: indonesian
+tgt_lang: english
+
+model:  
+  model: Seq2Seq
+  src_emb_dim: 32
+  tgt_emb_dim: 32
+  encoder_hidden_dim: 256
+  decoder_hidden_dim: 512
+  num_encoder_layers: 2
+  num_decoder_layers: 2
+
+train:
+  epochs: 50
+  batch_size: 16
+  learning_rate: 0.0001
+  momentum: 0.99
+  criterion: CrossEntropyLoss
+  optimizer: SGD

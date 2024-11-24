@@ -15,6 +15,7 @@ class Preprocess:
         self.df_valid = None
         self.seq_len = {}
         self.vocab = {}
+        self.vocab_size = {}
         if self.task == 'machine_translation':
             self.languages = ['indonesian', 'javanese', 'english']  
         elif self.task == 'sentiment_analysis':
@@ -37,6 +38,7 @@ class Preprocess:
             for i, word in enumerate(corpus):
                 vocabulary[word] = n + i
             self.vocab[language] = vocabulary
+            self.vocab_size[language] = len(vocabulary)
         
     def _tokenize(self):
         nltk.data.path.append('./utils') # from src directory

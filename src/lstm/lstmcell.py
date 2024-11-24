@@ -38,15 +38,13 @@ class LSTMCell(nn.Module):
         c_t: (batch_size, hidden_size)
         """
         batch_size, seq_len, _ = x.size()
-        
         # 初始化隐藏状态和细胞状态
         if h_t is None:
-            h_t = torch.zeros(batch_size, self.hidden_size, device=x.device)
+            h_t = torch.zeros(batch_size, self.hidden_size, device=x.device).detach()
         if c_t is None:
-            c_t = torch.zeros(batch_size, self.hidden_size, device=x.device)
+            c_t = torch.zeros(batch_size, self.hidden_size, device=x.device).detach()
             
         hidden_seq = []
-        output_seq = []
         x_copy = x.transpose(1, 0)  # (seq_len, batch_size, input_size)
         
         for x_t in x_copy:
@@ -61,7 +59,7 @@ class LSTMCell(nn.Module):
             
             # 候选单元状态
             g_t = torch.tanh(x_t @ self.W_ig + h_t @ self.W_hg + self.b_g)
-            
+        
             # 更新单元状态
             c_t = f_t * c_t + i_t * g_t
             

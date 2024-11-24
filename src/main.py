@@ -19,7 +19,7 @@ if __name__ == '__main__':
     preprocess.load_and_preprocess_data()
     print(f"DataFrame Columns: {preprocess.df_train.columns}")
     print(f"Language Vocabulary: {preprocess.vocab.keys()}")
-    print('Vocabulary Size:', len(preprocess.vocab['indonesian']))
+    print('Vocabulary Size:', preprocess.vocab_size['indonesian'])
     print(f"Language Sequence Length: {preprocess.seq_len}")
     print('Vocabulary:')
     cnt = 5
@@ -42,8 +42,14 @@ if __name__ == '__main__':
     my_dataloader = DataLoader(my_dataset, batch_size=32, shuffle=True)
     print(f"TranslationDataset size: {len(my_dataset)}")
     print(f"Num of Batches: {len(my_dataloader)}")
-    print(f"Data: {my_dataset[0]}")
+    print(f"Data: {my_dataset[0]}\n")
     
+    for src, tgt in my_dataloader:
+        if torch.isnan(src).any() or torch.isinf(src).any():
+            print("src contains NaN or inf!")
+        if torch.isnan(tgt).any() or torch.isinf(tgt).any():
+            print("tgt contains NaN or inf!")
+                
     # SentimentPreprocess
     print(f"{' SentimentPreprocess ':*^50}")
     dir_path = '../nusax/datasets/sentiment/indonesian'
@@ -66,7 +72,7 @@ if __name__ == '__main__':
         cnt -= 1
     print('Tokenizer:')
     print(eval(preprocess.df_train.loc[0, 'indonesian_tokens']))
-    print(eval(preprocess.df_train.loc[0, 'indonesian_word2index']))
+    print(eval(preprocess.df_train.loc[0, 'indonesian_word2index']), '\n')
     
     # SentimentDataset
     print(f"{' SentimentDataset ':*^50}")
@@ -74,9 +80,13 @@ if __name__ == '__main__':
     my_dataloader = DataLoader(my_dataset, batch_size=32, shuffle=True)
     print(f"SentimentDataset size: {len(my_dataset)}")
     print(f"Num of Batches: {len(my_dataloader)}")
-    print(f"Data: {my_dataset[0]}")
+    print(f"Data: {my_dataset[0]}\n")
     
-    
+    for text, label in my_dataloader:
+        if torch.isnan(text).any() or torch.isinf(text).any():
+            print("text contains NaN or inf!")
+        if torch.isnan(label).any() or torch.isinf(label).any():
+            print("label contains NaN or inf!")
     
     # lstmcell
     print(f"{' LSTMCell ':*^50}")
@@ -135,19 +145,27 @@ if __name__ == '__main__':
     
     # Seq2Seq
     print(f"{' Seq2Seq ':*^50}")
+    src_seq_len = 128
+    tgt_seq_len = 256
+    src_vocab_dim = 2500
+    tgt_vocab_dim = 5000
     batch_size = 64
-    src_seq_len = 1024 
-    tgt_seq_len = 2048
     src_emb_dim = 64 
     tgt_emb_dim = 128
     encoder_hidden_dim = 128 
     decoder_hidden_dim = 128 
-    tgt_vocab_dim = 5000
     num_encoder_layers = 2 
     num_decoder_layers = 2
-    mt = Seq2Seq(src_seq_len, tgt_seq_len, src_emb_dim, tgt_emb_dim, encoder_hidden_dim, decoder_hidden_dim, tgt_vocab_dim, num_encoder_layers, num_decoder_layers)
-    src = torch.randint(0, src_seq_len, (batch_size, src_seq_len))
-    tgt = torch.randint(0, tgt_seq_len, (batch_size, tgt_seq_len))
+    mt = Seq2Seq(src_vocab_dim, 
+                 tgt_vocab_dim, 
+                 src_emb_dim, 
+                 tgt_emb_dim, 
+                 encoder_hidden_dim, 
+                 decoder_hidden_dim,  
+                 num_encoder_layers, 
+                 num_decoder_layers)
+    src = torch.randint(0, src_vocab_dim, (batch_size, src_seq_len))
+    tgt = torch.randint(0, tgt_vocab_dim, (batch_size, tgt_seq_len))
     print('word2index type: ', src[0].dtype)
     output_seq = mt(src, tgt)
     print(f'output.shape: {output_seq.shape}\n') # (batch_size, tgt_seq_len, tgt_vocab_dim)

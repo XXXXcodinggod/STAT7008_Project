@@ -16,9 +16,15 @@ class BidirectionalLSTM(nn.Module):
         
     def forward(self, input_seq, h_0=None, c_0=None):
         if h_0 is None:
-            h_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach()
+            h_0 = torch.zeros(2 * self.num_layers, 
+                              input_seq.shape[0], 
+                              self.hidden_size, 
+                              device=input_seq.device).detach()
         if c_0 is None:
-            c_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach()
+            c_0 = torch.zeros(2 * self.num_layers, 
+                              input_seq.shape[0], 
+                              self.hidden_size, 
+                              device=input_seq.device).detach()
         input_seq_reversed = input_seq.flip(dims=[1]) # (batch_size, seq_len, hidden_size)
         
         hidden_seq_forward, h_forward, c_forward = self.LSTMCell_forward[0](input_seq, h_0[0], c_0[0]) # (batch_size, seq_len, hidden_size)
@@ -44,9 +50,15 @@ class BiLSTM(nn.Module):
     
     def forward(self, input_seq, h_0=None, c_0=None):
         if h_0 is None:
-            h_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach() # (num_layer, batch_size, hidden_size)
+            h_0 = torch.zeros(2 * self.num_layers, 
+                              input_seq.shape[0], 
+                              self.hidden_size, 
+                              device=input_seq.device).detach() # (num_layer, batch_size, hidden_size)
         if c_0 is None:
-            c_0 = torch.zeros(2 * self.num_layers, input_seq.shape[0], self.hidden_size).detach() # (num_layer, batch_size, hidden_size)
+            c_0 = torch.zeros(2 * self.num_layers, 
+                              input_seq.shape[0], 
+                              self.hidden_size, 
+                              device=input_seq.device).detach() # (num_layer, batch_size, hidden_size)
         output, _, _, _, _ = self.lstm(input_seq, h_0, c_0) # (batch_size, seq_len, 2 * hidden_size)
         batch_size, seq_len, _ = output.shape
         output = output.view(batch_size * seq_len, 2 * self.hidden_size) # (batch_size * seq_len, 2 * hidden_size)
