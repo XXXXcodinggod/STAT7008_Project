@@ -3,8 +3,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from utils.preprocess import Preprocess
 from utils.dataset import TranslationDataset, SentimentDataset
-from lstm.lstmcell import LSTMCell
-from lstm.multi_lstm import MultiLayerLSTM, LSTM
+from lstm.lstmcell import LSTMCell, LSTMCell_
+from lstm.multi_lstm import MultiLayerLSTM, MultiLayerLSTM_, LSTM, LSTM_, LSTMDecoder
 from lstm.bi_lstm import BidirectionalLSTM, BiLSTM
 from lstm.seq2seq import Seq2Seq
 
@@ -100,7 +100,19 @@ if __name__ == '__main__':
     print('hidden_seq.shape:', hidden_seq.shape) # (batch_size, seq_len, hidden_size)
     print('h.shape:', h.shape) # (batch_size, hidden_size)
     print(f'c.shape: {c.shape}\n') # (batch_size, hidden_size)
-    
+
+    # lstmcell
+    print(f"{' LSTMCell_ ':*^50}")
+    batch_size = 4
+    x = torch.randn(batch_size, 10)
+    lstm=LSTMCell_(10, 32)
+    h_0=torch.randn(batch_size, 32)
+    c_0=torch.randn(batch_size, 32)
+    h, c = lstm(x, h_0, c_0)
+
+    print('h.shape:', h.shape) # (batch_size, hidden_size)
+    print(f'c.shape: {c.shape}\n') # (batch_size, hidden_size)
+
     # MultiLayerLSTM
     print(f"{' MultiLayerLSTM ':*^50}")
     batch_size = 64
@@ -111,17 +123,59 @@ if __name__ == '__main__':
     c_0 = torch.randn(n_layers, batch_size, 32)
     output_seq, h, c = lstm(x, h_0, c_0)
 
-    print('hidden_seq.shape:', output_seq.shape) # (batch_size, seq_len, hidden_size)
+    print('hidden_seq.shape:', output_seq.shape) # (hidden_size)
     print('h.shape:', h_0.shape) # (batch_size, hidden_size)
     print(f'c.shape: {c_0.shape}\n') # (batch_size, hidden_size)
+
+    # MultiLayerLSTM_
+    print(f"{' MultiLayerLSTM_ ':*^50}")
+    batch_size = 64
+    n_layers = 4
+    x = torch.randn(batch_size, 10)
+    lstm = MultiLayerLSTM_(10, 32, n_layers)
+    h_0 = torch.randn(n_layers, batch_size, 32)
+    c_0 = torch.randn(n_layers, batch_size, 32)
+    h, h_t, c_t = lstm(x, h_0, c_0)
+
+    print('hidden_vector.shape:', h.shape) # (batch_size, hidden_size)
+    print('h_t.shape:', h_t.shape) # (num_layers, batch_size, hidden_size)
+    print(f'c_t.shape: {c_t.shape}\n') # (num_layers, batch_size, hidden_size)
     
     # LSTM
     print(f"{' LSTM ':*^50}")
     output_size = 24
+    x = torch.randn(batch_size, 20, 10)
     lstm = LSTM(10, 32, output_size, n_layers)
     output_seq = lstm(x)
     print(f'output.shape: {output_seq.shape}\n', ) # (batch_size, seq_len, output_size)
 
+    # LSTM_
+    print(f"{' LSTM_ ':*^50}")
+    output_size = 24
+    x = torch.randn(batch_size, 10)
+    lstm = LSTM_(10, 32, output_size, n_layers)
+    output, h_t, c_t = lstm(x)
+    print(f'output.shape: {output.shape}') # (batch_size, output_size)
+    print('h_t.shape:', h_t.shape) # (num_layers, batch_size, hidden_size)
+    print(f'c_t.shape: {c_t.shape}\n') # (num_layers, batch_size, hidden_size)
+
+    # LSTMDecoder
+    print(f"{' LSTMDecoder ':*^50}")
+    tgt_emb_dim = 32
+    hidden_size = 32 
+    output_size = 24
+    tgt_vocab_dim = 10000
+    tgt_embedding = nn.Embedding(tgt_vocab_dim, tgt_emb_dim)
+    seq_len = 48
+    num_layers = 4
+    teacher_forcing_ratio = 0.5
+    x = torch.randn(batch_size, seq_len, tgt_emb_dim)
+    h_encode = torch.randn(batch_size, hidden_size)
+    c_encode = torch.randn(batch_size, hidden_size)
+    lstm = LSTMDecoder(tgt_emb_dim, hidden_size, output_size, tgt_embedding, num_layers)
+    output = lstm(x, h_encode, c_encode, teacher_forcing_ratio=teacher_forcing_ratio)
+    print(f'output.shape: {output.shape}') # (batch_size, seq_len, output_size)
+    
     # BidirectionalLSTM
     print(f"{' BidirectionalLSTM ':*^50}")
     batch_size = 64
@@ -156,6 +210,8 @@ if __name__ == '__main__':
     decoder_hidden_dim = 128 
     num_encoder_layers = 2 
     num_decoder_layers = 2
+    max_len = 500
+    teacher_forcing_ratio = 0.5
     mt = Seq2Seq(src_vocab_dim, 
                  tgt_vocab_dim, 
                  src_emb_dim, 
@@ -163,7 +219,9 @@ if __name__ == '__main__':
                  encoder_hidden_dim, 
                  decoder_hidden_dim,  
                  num_encoder_layers, 
-                 num_decoder_layers)
+                 num_decoder_layers,
+                 max_len,
+                 teacher_forcing_ratio)
     src = torch.randint(0, src_vocab_dim, (batch_size, src_seq_len))
     tgt = torch.randint(0, tgt_vocab_dim, (batch_size, tgt_seq_len))
     print('word2index type: ', src[0].dtype)

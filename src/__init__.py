@@ -1,6 +1,6 @@
 from .utils import Preprocess, TranslationDataset, SentimentDataset
-from .utils import SentimentTrain, TranslationTrain
-from .lstm import LSTMCell, MultiLayerLSTM, LSTM, BidirectionalLSTM, BiLSTM, Seq2Seq
+from .utils import SentimentTrain, TranslationTrain, plot_losses
+from .lstm import LSTMCell, LSTMCell_, MultiLayerLSTM, MultiLayerLSTM_, LSTM, LSTM_, LSTMDecoder, BidirectionalLSTM, BiLSTM, Seq2Seq
 
 __all__ = [
     "Preprocess",
@@ -8,9 +8,14 @@ __all__ = [
     "SentimentDataset",
     "SentimentTrain",
     "TranslationTrain",
+    "plot_losses",
     "LSTMCell", 
+    "LSTMCell_",
     "MultiLayerLSTM", 
+    "MultiLayerLSTM_",
     "LSTM", 
+    "LSTM_",
+    "LSTMDecoder",
     "BidirectionalLSTM", 
     "BiLSTM", 
     "Seq2Seq"]

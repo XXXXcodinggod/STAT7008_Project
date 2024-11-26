@@ -65,21 +65,3 @@ class BiLSTM(nn.Module):
         output = self.fc(output)
         output = output.view(batch_size, seq_len, self.output_size)
         return output
-
-if __name__ == '__main__':
-    batch_size = 64
-    n_layers = 4
-    x = torch.randn(batch_size, 20, 10)
-    lstm = BidirectionalLSTM(10, 32, n_layers)
-    h_0 = torch.randn(2 * n_layers, batch_size, 32)
-    c_0 = torch.randn(2 * n_layers, batch_size, 32)
-    hidden_seq_combined, h_forward, h_backward, c_forward, c_backward = lstm(x, h_0, c_0)
-
-    print('hidden_seq.shape:', hidden_seq_combined.shape) # (batch_size, seq_len, hidden_size)
-    print('h_forward.shape:', h_forward.shape) # (batch_size, hidden_size)
-    print('c_forward.shape:', c_forward.shape) # (batch_size, hidden_size)
-
-    output_size = 24
-    lstm = BiLSTM(10, 32, output_size, n_layers)
-    output_seq = lstm(x)
-    print('output.shape:', output_seq.shape) # (batch_size, seq_len, output_size)
