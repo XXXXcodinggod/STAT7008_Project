@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from src import Preprocess, TranslationDataset, SentimentDataset
-from src import SentimentTrain, TranslationTrain, plot_losses
+from src import SentimentTrain, TranslationTrain, TranslationTest, plot_losses
 from src import Seq2Seq
 
 def load_config(config_file):
@@ -28,14 +28,15 @@ def main():
     tgt_emb_dim = model_config['tgt_emb_dim']
     encoder_hidden_dim = model_config['encoder_hidden_dim']
     decoder_hidden_dim = model_config['decoder_hidden_dim']
-    num_encoder_layers = model_config['num_encoder_layers']
-    num_decoder_layers = model_config['num_decoder_layers']
+    num_layers = model_config['num_layers']
     max_len = model_config['max_len']
-    teacher_forcing_ratio = model_config['teacher_forcing_ratio']
     epochs = train_config['epochs']
     batch_size = train_config['batch_size']
     learning_rate = train_config['learning_rate']
     momentum = train_config['momentum']
+    weight_decay = train_config['weight_decay']
+    min_teacher_forcing_ratio = train_config['min_teacher_forcing_ratio']
+    decay_rate = train_config['decay_rate']
     checkpoint_path = output_config['checkpoint_path']
     plot_path = output_config['plot_path']
     
@@ -47,6 +48,8 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     valid_dataset = TranslationDataset(preprocess.df_valid, src_lang, tgt_lang)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    test_dataset = TranslationDataset(preprocess.df_test, src_lang, tgt_lang)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False) 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device('cpu')
     if model_name == 'Seq2Seq':
@@ -56,11 +59,9 @@ def main():
                         tgt_emb_dim, 
                         encoder_hidden_dim, 
                         decoder_hidden_dim, 
-                        num_encoder_layers, 
-                        num_decoder_layers,
-                        max_len,
-                        teacher_forcing_ratio).to(device)
-    optimizer = optim.Adam(model.parameters(), learning_rate, weight_decay=1e-5)
+                        num_layers, 
+                        max_len).to(device)
+    optimizer = optim.Adam(model.parameters(), learning_rate, weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
     criterion = nn.CrossEntropyLoss(ignore_index=0) 
     train_losses, valid_losses = TranslationTrain(model, 
@@ -70,9 +71,28 @@ def main():
                                                   criterion, 
                                                   optimizer, 
                                                   scheduler, 
-                                                  epochs, 
+                                                  epochs,
+                                                  min_teacher_forcing_ratio,
+                                                  decay_rate,
                                                   checkpoint_path)
     plot_losses(train_losses, valid_losses, plot_path)
+    
+    model = Seq2Seq(src_vocab_dim, 
+                    tgt_vocab_dim, 
+                    src_emb_dim, 
+                    tgt_emb_dim, 
+                    encoder_hidden_dim, 
+                    decoder_hidden_dim, 
+                    num_layers,
+                    max_len).to(device)
+    model.load_state_dict(torch.load(checkpoint_path))
+    test_loss = TranslationTest(model, test_loader, device, criterion, preprocess, tgt_lang)
+    print(test_loss)
+    print(preprocess.df_test[f"{tgt_lang}_tokens"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_word2index"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_predicted_tokens"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_predicted_sentence"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_predicted_sentence"].tail(20))
     
 if __name__ == '__main__':
     main()

@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from utils.preprocess import Preprocess
 from utils.dataset import TranslationDataset, SentimentDataset
+from utils.test import TranslationTest
 from lstm.lstmcell import LSTMCell, LSTMCell_
 from lstm.multi_lstm import MultiLayerLSTM, MultiLayerLSTM_, LSTM, LSTM_, LSTMDecoder
 from lstm.bi_lstm import BidirectionalLSTM, BiLSTM
@@ -31,11 +32,13 @@ if __name__ == '__main__':
         print(f"indonesian: {item1}, \njavanese: {item2}")
         cnt -= 1
     print('Tokenizer:')
-    print(eval(preprocess.df_train.loc[0, 'indonesian_tokens']))
-    print(eval(preprocess.df_train.loc[0, 'indonesian_word2index']))
-    print(eval(preprocess.df_train.loc[0, 'javanese_tokens']))
+    print(eval(preprocess.df_train.loc[0, 'indonesian_tokens']),'\n')
+    print(eval(preprocess.df_train.loc[0, 'indonesian_word2index']),'\n')
+    print(eval(preprocess.df_train.loc[0, 'javanese_tokens']), '\n')
     print(eval(preprocess.df_train.loc[0, 'javanese_word2index']), '\n')
-
+    print(eval(preprocess.df_train.loc[0, 'english_tokens']), '\n')
+    print(eval(preprocess.df_train.loc[0, 'english_word2index']), '\n\n')
+    
     # TranslationDataset
     print(f"{' TranslationDataset ':*^50}")
     my_dataset = TranslationDataset(preprocess.df_train, 'indonesian', 'english')
@@ -174,7 +177,7 @@ if __name__ == '__main__':
     c_encode = torch.randn(batch_size, hidden_size)
     lstm = LSTMDecoder(tgt_emb_dim, hidden_size, output_size, tgt_embedding, num_layers)
     output = lstm(x, h_encode, c_encode, teacher_forcing_ratio=teacher_forcing_ratio)
-    print(f'output.shape: {output.shape}') # (batch_size, seq_len, output_size)
+    print(f'output.shape: {output.shape}\n') # (batch_size, seq_len, output_size)
     
     # BidirectionalLSTM
     print(f"{' BidirectionalLSTM ':*^50}")
@@ -184,11 +187,11 @@ if __name__ == '__main__':
     lstm = BidirectionalLSTM(10, 32, n_layers)
     h_0 = torch.randn(2 * n_layers, batch_size, 32)
     c_0 = torch.randn(2 * n_layers, batch_size, 32)
-    hidden_seq_combined, h_forward, h_backward, c_forward, c_backward = lstm(x, h_0, c_0)
+    hidden_seq_combined, h_t, c_t = lstm(x, h_0, c_0)
 
     print('hidden_seq.shape:', hidden_seq_combined.shape) # (batch_size, seq_len, hidden_size)
-    print('h_forward.shape:', h_forward.shape) # (batch_size, hidden_size)
-    print(f'c_forward.shape: {c_forward.shape}\n') # (batch_size, hidden_size)
+    print('h_forward.shape:', h_t.shape) # (n_layers, batch_size, 2 * hidden_size)
+    print(f'c_forward.shape: {c_t.shape}\n') # (n_layers, batch_size, 2 * hidden_size)
 
     # BiLSTM
     print(f"{' BiLSTM ':*^50}")
@@ -199,31 +202,44 @@ if __name__ == '__main__':
     
     # Seq2Seq
     print(f"{' Seq2Seq ':*^50}")
+    dir_path = '../nusax/datasets/mt'
+    task = 'machine_translation'
+    preprocess = Preprocess(dir_path, task)
+    preprocess.load_and_preprocess_data()
     src_seq_len = 128
     tgt_seq_len = 256
-    src_vocab_dim = 2500
-    tgt_vocab_dim = 5000
+    src_vocab_dim = 2852
+    tgt_vocab_dim = 2827
     batch_size = 64
     src_emb_dim = 64 
     tgt_emb_dim = 128
     encoder_hidden_dim = 128 
     decoder_hidden_dim = 128 
-    num_encoder_layers = 2 
-    num_decoder_layers = 2
+    num_layers = 2 
     max_len = 500
     teacher_forcing_ratio = 0.5
+    src_lang = 'indonesian'
+    tgt_lang = 'english'
+    test_dataset = TranslationDataset(preprocess.df_test, src_lang, tgt_lang)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False) 
+    device = torch.device("cpu")
+    criterion = nn.CrossEntropyLoss(ignore_index=0) 
     mt = Seq2Seq(src_vocab_dim, 
                  tgt_vocab_dim, 
                  src_emb_dim, 
                  tgt_emb_dim, 
                  encoder_hidden_dim, 
                  decoder_hidden_dim,  
-                 num_encoder_layers, 
-                 num_decoder_layers,
-                 max_len,
-                 teacher_forcing_ratio)
+                 num_layers,
+                 max_len)
     src = torch.randint(0, src_vocab_dim, (batch_size, src_seq_len))
     tgt = torch.randint(0, tgt_vocab_dim, (batch_size, tgt_seq_len))
     print('word2index type: ', src[0].dtype)
-    output_seq = mt(src, tgt)
+    output_seq = mt(src, tgt, teacher_forcing_ratio)
     print(f'output.shape: {output_seq.shape}\n') # (batch_size, tgt_seq_len, tgt_vocab_dim)
+    test_loss = TranslationTest(mt, test_loader, device, criterion, preprocess, tgt_lang)
+    print(preprocess.df_test[f"{tgt_lang}_tokens"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_word2index"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_predicted_tokens"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_predicted_sentence"].head(20))
+    print(preprocess.df_test[f"{tgt_lang}_predicted_sentence"].tail(20))

@@ -6,22 +6,23 @@ tgt_lang: english
 
 model:  
   model: Seq2Seq
-  src_emb_dim: 64
-  tgt_emb_dim: 64
+  src_emb_dim: 53
+  tgt_emb_dim: 63
   encoder_hidden_dim: 128
-  decoder_hidden_dim: 128
-  num_encoder_layers: 4
-  num_decoder_layers: 4
+  decoder_hidden_dim: 256
+  num_layers: 4
   max_len: 200
-  teacher_forcing_ratio: 0.8
 
 train:
-  epochs: 2
+  epochs: 5
   batch_size: 32
   learning_rate: 0.001
   momentum: 0.99
   criterion: CrossEntropyLoss
   optimizer: Adam
+  weight_decay: 0.01
+  min_teacher_forcing_ratio: 0.2
+  decay_rate: 0.02
 
 output:
   checkpoint_path: ./checkpoints/test.pth

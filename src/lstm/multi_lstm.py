@@ -179,32 +179,19 @@ class LSTMDecoder(nn.Module):
         self.num_layers = num_layers
         self.lstm = LSTM_(self.input_size, self.hidden_size, self.output_size, self.num_layers)
     
-    def forward(self, input_seq, h_encode, c_encode, teacher_forcing_ratio=1):
-        batch_size, seq_len, _ = input_seq.size()
-
-        h_t = torch.zeros(self.num_layers, 
-                          batch_size, 
-                          self.hidden_size, 
-                          device=input_seq.device) # (num_layer, batch_size, hidden_size)
-        c_t = torch.zeros(self.num_layers, 
-                          batch_size, 
-                          self.hidden_size, 
-                          device=input_seq.device) # (num_layer, batch_size, hidden_size)
-        h_t[0], c_t[0] = h_encode, c_encode # h_encode, c_encode: (batch_size, hidden_size)
-        
-        for i in range(1, self.num_layers):
-            h_t[i], c_t[i] = h_t[i].detach(), c_t[i].detach() # only update first layer at timestamp 1
-            
+    def forward(self, input_seq, h_encode, c_encode, teacher_forcing_ratio=0):
+        seq_len = input_seq.size(1)
+        use_teacher_forcing = torch.rand(1).item() < teacher_forcing_ratio
         outputs = []
         input_seq = input_seq.transpose(1, 0) # (seq_len, batch_size, input_size)
-        current_input = input_seq[0, :, :]
+        current_input = input_seq[0, :, :] # (batch_size, input_size)
     
         for t in range(seq_len):
             x_t = current_input
-            output_t, h_t, c_t = self.lstm(x_t, h_t, c_t) # h: (batch_size, hidden_size), h_t, c_t: (num_layer, batch_size, hidden_size)
+            output_t, h_encode, c_encode = self.lstm(x_t, h_encode, c_encode) # h_t, c_t: (num_layer, batch_size, hidden_size)
             outputs.append(output_t.unsqueeze(1)) # (batch_size, 1, output_size)
-            if t < seq_len - 1 and torch.rand(1).item() < teacher_forcing_ratio:
-                current_input = input_seq[t, :, :]
+            if t < seq_len - 1 and use_teacher_forcing:
+                current_input = input_seq[t + 1, :, :]
             else:
                 current_input = output_t.argmax(1) # (batch_size, )
                 current_input = self.tgt_embedding(current_input) # (batch_size, input_size)

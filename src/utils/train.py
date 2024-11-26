@@ -2,21 +2,33 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-def TranslationTrain(model, train_loader, valid_loader, device, criterion, optimizer, scheduler, epochs, checkpoint_path):
-    torch.cuda.empty_cache()
+def TranslationTrain(model, 
+                     train_loader, 
+                     valid_loader, 
+                     device, 
+                     criterion, 
+                     optimizer, 
+                     scheduler, 
+                     epochs, 
+                     min_teacher_forcing_ratio,
+                     decay_rate,
+                     checkpoint_path):
     train_losses = []
     valid_losses = []
     best_valid_loss = float('inf')
-        
+    initial_teacher_forcing_ratio = 1.0
+    
     torch.autograd.set_detect_anomaly(True)
     for epoch in range(epochs):
         model.train()
         epoch_loss = 0 
+        teacher_forcing_ratio = max(min_teacher_forcing_ratio, 
+                                    initial_teacher_forcing_ratio - decay_rate * epoch)
         
         for src, tgt in tqdm(train_loader, desc="Training", unit="batch"):
             src, tgt = src.to(device), tgt.to(device)
             optimizer.zero_grad()
-            output = model(src, tgt[:, :-1])  # use preceding token to predict succeeding token
+            output = model(src, tgt[:, :-1], teacher_forcing_ratio)  # use preceding token to predict succeeding token
             loss = criterion(output.view(-1, output.size(-1)), tgt[:, 1:].contiguous().view(-1)) # compare predicted tokens and ground truth
             loss.backward()
             optimizer.step()
@@ -41,7 +53,7 @@ def TranslationTrain(model, train_loader, valid_loader, device, criterion, optim
                 valid_loss += loss.item()
         avg_valid_loss = valid_loss / len(valid_loader)
         valid_losses.append(avg_valid_loss)
-        print(f'Epoch [{epoch + 1}/{epochs}], Train Loss: {avg_loss:.4f}, Valid Loss: {avg_valid_loss:.4f}')
+        print(f'Epoch [{epoch + 1}/{epochs}], Train Loss: {avg_loss:.4f}, Validation Loss: {avg_valid_loss:.4f}')
 
         if avg_valid_loss < best_valid_loss:
             best_valid_loss = avg_valid_loss
