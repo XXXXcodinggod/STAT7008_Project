@@ -21,13 +21,14 @@ nvidia-cublas-cu11==11.10.3.66
 nvidia-cuda-nvrtc-cu11==11.7.99
 nvidia-cuda-runtime-cu11==11.7.99
 nvidia-cudnn-cu11==8.5.0.96
-pillow==11.0.0
 pandas==2.2.3
+pillow==11.0.0
 pyparsing==3.2.0
 PyYAML==6.0.2
 regex==2024.11.6
 requests==2.32.3
 safetensors==0.4.5
+seaborn==0.13.2
 tokenizers==0.19.1
 torch==1.13.0
 tqdm==4.67.0

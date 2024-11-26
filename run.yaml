@@ -6,18 +6,18 @@ tgt_lang: english
 
 model:  
   model: Seq2Seq
-  src_emb_dim: 128
-  tgt_emb_dim: 128
-  encoder_hidden_dim: 512
-  decoder_hidden_dim: 1024
+  src_emb_dim: 64
+  tgt_emb_dim: 64
+  encoder_hidden_dim: 128
+  decoder_hidden_dim: 128
   num_encoder_layers: 4
   num_decoder_layers: 4
-  max_len: 100
+  max_len: 200
   teacher_forcing_ratio: 0.8
 
 train:
-  epochs: 200
-  batch_size: 16
+  epochs: 2
+  batch_size: 32
   learning_rate: 0.001
   momentum: 0.99
   criterion: CrossEntropyLoss
