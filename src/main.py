@@ -173,10 +173,10 @@ if __name__ == '__main__':
     num_layers = 4
     teacher_forcing_ratio = 0.5
     x = torch.randn(batch_size, seq_len, tgt_emb_dim)
-    h_encode = torch.randn(batch_size, hidden_size)
-    c_encode = torch.randn(batch_size, hidden_size)
+    h_encode = torch.randn(num_layers, batch_size, hidden_size)
+    c_encode = torch.randn(num_layers, batch_size, hidden_size)
     lstm = LSTMDecoder(tgt_emb_dim, hidden_size, output_size, tgt_embedding, num_layers)
-    output = lstm(x, h_encode, c_encode, teacher_forcing_ratio=teacher_forcing_ratio)
+    output, _ = lstm(x, h_encode, c_encode, teacher_forcing_ratio=teacher_forcing_ratio)
     print(f'output.shape: {output.shape}\n') # (batch_size, seq_len, output_size)
     
     # BidirectionalLSTM
@@ -216,8 +216,10 @@ if __name__ == '__main__':
     encoder_hidden_dim = 128 
     decoder_hidden_dim = 128 
     num_layers = 2 
-    max_len = 500
+    max_len = 100
     teacher_forcing_ratio = 0.5
+    dropout_rate = 0.5
+    temperature = 20
     src_lang = 'indonesian'
     tgt_lang = 'english'
     test_dataset = TranslationDataset(preprocess.df_test, src_lang, tgt_lang)
@@ -231,15 +233,17 @@ if __name__ == '__main__':
                  encoder_hidden_dim, 
                  decoder_hidden_dim,  
                  num_layers,
+                 dropout_rate,
                  max_len)
     src = torch.randint(0, src_vocab_dim, (batch_size, src_seq_len))
     tgt = torch.randint(0, tgt_vocab_dim, (batch_size, tgt_seq_len))
     print('word2index type: ', src[0].dtype)
-    output_seq = mt(src, tgt, teacher_forcing_ratio)
+    output_seq, _ = mt(src, tgt, teacher_forcing_ratio, temperature)
     print(f'output.shape: {output_seq.shape}\n') # (batch_size, tgt_seq_len, tgt_vocab_dim)
-    test_loss = TranslationTest(mt, test_loader, device, criterion, preprocess, tgt_lang)
-    print(preprocess.df_test[f"{tgt_lang}_tokens"].head(20))
-    print(preprocess.df_test[f"{tgt_lang}_word2index"].head(20))
+    test_loss = TranslationTest(mt, test_loader, device, criterion, preprocess, tgt_lang, temperature)
+    print(preprocess.df_test[f"{tgt_lang}_tokens"].tail(20))
+    print(preprocess.df_test[f"{tgt_lang}_word2index"].tail(20))
     print(preprocess.df_test[f"{tgt_lang}_predicted_tokens"].head(20))
     print(preprocess.df_test[f"{tgt_lang}_predicted_sentence"].head(20))
-    print(preprocess.df_test[f"{tgt_lang}_predicted_sentence"].tail(20))
+    print(preprocess.df_test[f"{tgt_lang}_predicted_tokens"].iloc[0])
+    print(preprocess.df_test[f"{tgt_lang}_predicted_sentence"].iloc[0])

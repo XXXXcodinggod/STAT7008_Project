@@ -11,26 +11,30 @@ def TranslationTrain(model,
                      scheduler, 
                      epochs, 
                      min_teacher_forcing_ratio,
+                     temperature,
                      decay_rate,
+                     max_norm,
                      checkpoint_path):
     train_losses = []
     valid_losses = []
     best_valid_loss = float('inf')
     initial_teacher_forcing_ratio = 1.0
     
-    torch.autograd.set_detect_anomaly(True)
+    # torch.autograd.set_detect_anomaly(True)
     for epoch in range(epochs):
         model.train()
         epoch_loss = 0 
         teacher_forcing_ratio = max(min_teacher_forcing_ratio, 
                                     initial_teacher_forcing_ratio - decay_rate * epoch)
-        
+        print(f"teacher_forcing_ratio: {teacher_forcing_ratio}")
         for src, tgt in tqdm(train_loader, desc="Training", unit="batch"):
             src, tgt = src.to(device), tgt.to(device)
             optimizer.zero_grad()
-            output = model(src, tgt[:, :-1], teacher_forcing_ratio)  # use preceding token to predict succeeding token
+            output, _ = model(src, tgt[:, :-1], teacher_forcing_ratio, temperature)  # use preceding token to predict succeeding token
             loss = criterion(output.view(-1, output.size(-1)), tgt[:, 1:].contiguous().view(-1)) # compare predicted tokens and ground truth
+
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
             epoch_loss += loss.item()
         
@@ -38,27 +42,9 @@ def TranslationTrain(model,
         avg_loss = epoch_loss / len(train_loader)
         train_losses.append(avg_loss)
 
-        model.eval()
-        valid_loss = 0
-        with torch.no_grad():
-            for src, tgt in valid_loader: # tgt: (batch_size, tgt_seq_len)
-                src, tgt = src.to(device), tgt.to(device)
-                output = model(src) # outputs: (batch_size, max_len, tgt_vocab_dim)
-                tgt_seq_len, max_len = tgt.size(1), output.size(1)
-                if tgt_seq_len < max_len: # tgt_seq_len < max_len
-                    tgt = F.pad(tgt, (0, max_len - tgt_seq_len), value=0) # ['PAD']: 0
-                elif tgt_seq_len > max_len: # tgt_seq_len > max_len
-                    tgt = tgt[:, :max_len] # truncate extra part due to model decoding capacity limitations
-                loss = criterion(output.view(-1, output.size(-1)), tgt.contiguous().view(-1))
-                valid_loss += loss.item()
-        avg_valid_loss = valid_loss / len(valid_loader)
-        valid_losses.append(avg_valid_loss)
-        print(f'Epoch [{epoch + 1}/{epochs}], Train Loss: {avg_loss:.4f}, Validation Loss: {avg_valid_loss:.4f}')
-
-        if avg_valid_loss < best_valid_loss:
-            best_valid_loss = avg_valid_loss
-            torch.save(model.state_dict(), checkpoint_path)
-            print(f"Successfully save the model to {checkpoint_path}")
+        print(f'Epoch [{epoch + 1}/{epochs}], Train Loss: {avg_loss:.4f}')
+        torch.save(model.state_dict(), checkpoint_path)
+        print(f"Successfully save the model to {checkpoint_path}")
     
     return train_losses, valid_losses
 

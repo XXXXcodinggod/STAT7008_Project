@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from .lstmcell import LSTMCell, LSTMCell_
 
 class MultiLayerLSTM(nn.Module):
@@ -10,14 +11,14 @@ class MultiLayerLSTM(nn.Module):
         forward(self, input_seq, h_0, c_0): allow whole sequence
     """
     
-    def __init__(self, input_size, hidden_size, num_layers=1):
+    def __init__(self, input_size, hidden_size, num_layers=1, dropout_rate=0.0):
         super().__init__()
         self.input_size=input_size
         self.hidden_size=hidden_size
         self.num_layers=num_layers
-        self.lstm = nn.ModuleList([LSTMCell(self.input_size, self.hidden_size)])
+        self.lstm = nn.ModuleList([LSTMCell(self.input_size, self.hidden_size, dropout_rate)])
         for _ in range(1, num_layers):
-            self.lstm.append(LSTMCell(self.hidden_size, self.hidden_size))
+            self.lstm.append(LSTMCell(self.hidden_size, self.hidden_size, dropout_rate))
 
     def forward(self, input_seq, h_0=None, c_0=None):
         batch_size = input_seq.size(0)
@@ -47,14 +48,14 @@ class MultiLayerLSTM_(nn.Module):
         forward(self, x_t, h_t, c_t): only allow 1 timestamp
     """
     
-    def __init__(self, input_size, hidden_size, num_layers=1):
+    def __init__(self, input_size, hidden_size, num_layers=1, dropout_rate=0.0):
         super().__init__()
         self.input_size=input_size
         self.hidden_size=hidden_size
         self.num_layers=num_layers
-        self.lstm = nn.ModuleList([LSTMCell_(self.input_size, self.hidden_size)])
+        self.lstm = nn.ModuleList([LSTMCell_(self.input_size, self.hidden_size, dropout_rate)])
         for _ in range(1, num_layers):
-            self.lstm.append(LSTMCell_(self.hidden_size, self.hidden_size))
+            self.lstm.append(LSTMCell_(self.hidden_size, self.hidden_size, dropout_rate))
 
     def forward(self, x_t, h_t=None, c_t=None):
         batch_size = x_t.size(0)
@@ -98,13 +99,13 @@ class LSTM(nn.Module):
         forward(self, input_seq, h_0, c_0): allow whole sequence
     """
     
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=1, dropout_rate=0.0):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.num_layers = num_layers
-        self.lstm = MultiLayerLSTM(self.input_size, self.hidden_size, self.num_layers)
+        self.lstm = MultiLayerLSTM(self.input_size, self.hidden_size, self.num_layers, dropout_rate)
         self.fc = nn.Linear(self.hidden_size, self.output_size)
     
     def forward(self, input_seq, h_0=None, c_0=None):
@@ -135,13 +136,13 @@ class LSTM_(nn.Module):
     Method:
         forward(self, input_seq, h_0, c_0): allow whole sequence
     """
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=1, dropout_rate=0.0):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.num_layers = num_layers
-        self.lstm = MultiLayerLSTM_(self.input_size, self.hidden_size, self.num_layers)
+        self.lstm = MultiLayerLSTM_(self.input_size, self.hidden_size, self.num_layers, dropout_rate)
         self.fc = nn.Linear(self.hidden_size, self.output_size)
     
     def forward(self, x_t, h_t=None, c_t=None):
@@ -170,33 +171,50 @@ class LSTMDecoder(nn.Module):
     Method:
         forward(self, x_t, h_t, c_t): only allow 1 timestamp
     """
-    def __init__(self, input_size, hidden_size, output_size, tgt_embedding, num_layers=1):
+    def __init__(self, input_size, hidden_size, output_size, tgt_embedding, num_layers=1, dropout_rate=0.0):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.tgt_embedding = tgt_embedding
         self.num_layers = num_layers
-        self.lstm = LSTM_(self.input_size, self.hidden_size, self.output_size, self.num_layers)
-    
-    def forward(self, input_seq, h_encode, c_encode, teacher_forcing_ratio=0):
-        seq_len = input_seq.size(1)
+        self.lstm = LSTM_(self.input_size, self.hidden_size, self.output_size, self.num_layers, dropout_rate)
+        
+    def forward(self, input_seq, h_encode, c_encode, teacher_forcing_ratio=0, temperature=1.0):
+        batch_size, seq_len, _ = input_seq.size()
         use_teacher_forcing = torch.rand(1).item() < teacher_forcing_ratio
         outputs = []
+        predicted_tokens = []
+        finished = torch.zeros(batch_size, dtype=torch.bool, device=input_seq.device)
         input_seq = input_seq.transpose(1, 0) # (seq_len, batch_size, input_size)
         current_input = input_seq[0, :, :] # (batch_size, input_size)
-    
         for t in range(seq_len):
             x_t = current_input
             output_t, h_encode, c_encode = self.lstm(x_t, h_encode, c_encode) # h_t, c_t: (num_layer, batch_size, hidden_size)
+            logits = output_t / temperature
+            probabilities = F.softmax(logits, dim=1)
+            predicted_token = torch.multinomial(probabilities, num_samples=1).squeeze() # (batch_size,)
+            for i, finish in enumerate(finished):
+                if finish:
+                    # output_t[i].fill_(-1e10) # 将所有logits设为负无穷
+                    # output_t[i, 0] = 0 # 将填充符位置的logit设为0
+                    # # output_t[i] = output_tensor
+                    predicted_token[i] = 0
+                elif not finish and predicted_token[i] == 3:
+                    finished[i] = True
             outputs.append(output_t.unsqueeze(1)) # (batch_size, 1, output_size)
+            predicted_tokens.append(predicted_token.unsqueeze(1))
+            # print(finished[:3])
             if t < seq_len - 1 and use_teacher_forcing:
                 current_input = input_seq[t + 1, :, :]
-            else:
-                current_input = output_t.argmax(1) # (batch_size, )
-                current_input = self.tgt_embedding(current_input) # (batch_size, input_size)
-        
+            else: # temperature sampling
+                # print('-'*100)
+                # print(predicted_token[:5])
+                # print('-'*100)
+                current_input = self.tgt_embedding(predicted_token) # (batch_size, input_size)
+         
         outputs = torch.cat(outputs, dim=1)  # (batch_size, seq_len, output_size)
+        predicted_tokens = torch.cat(predicted_tokens, dim=1)
         
-        return outputs
+        return outputs, predicted_tokens
     

@@ -3,16 +3,16 @@ import torch.nn as nn
 from .lstmcell import LSTMCell
 
 class BidirectionalLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers=1):
+    def __init__(self, input_size, hidden_size, num_layers=1, dropout_rate=0.0):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.LSTMCell_forward = nn.ModuleList([LSTMCell(self.input_size, self.hidden_size)])
-        self.LSTMCell_Backward = nn.ModuleList([LSTMCell(self.input_size, self.hidden_size)])
+        self.LSTMCell_forward = nn.ModuleList([LSTMCell(self.input_size, self.hidden_size, dropout_rate)])
+        self.LSTMCell_Backward = nn.ModuleList([LSTMCell(self.input_size, self.hidden_size, dropout_rate)])
         for _ in range(1, num_layers):
-            self.LSTMCell_forward.append(LSTMCell(2 * self.hidden_size, self.hidden_size))
-            self.LSTMCell_Backward.append(LSTMCell(2 * self.hidden_size, self.hidden_size))
+            self.LSTMCell_forward.append(LSTMCell(2 * self.hidden_size, self.hidden_size, dropout_rate))
+            self.LSTMCell_Backward.append(LSTMCell(2 * self.hidden_size, self.hidden_size, dropout_rate))
         
     def forward(self, input_seq, h_0=None, c_0=None):
         batch_size = input_seq.size(0)
@@ -57,13 +57,13 @@ class BidirectionalLSTM(nn.Module):
         return hidden_seq_combined, h_t_copy, c_t_copy
 
 class BiLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=1, dropout_rate=0.0):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.output_size = output_size
-        self.lstm = BidirectionalLSTM(self.input_size, self.hidden_size, self.num_layers)
+        self.lstm = BidirectionalLSTM(self.input_size, self.hidden_size, self.num_layers, dropout_rate)
         self.fc = nn.Linear(2 * self.hidden_size, self.output_size)
     
     def forward(self, input_seq, h_0=None, c_0=None):
